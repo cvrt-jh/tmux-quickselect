@@ -12,6 +12,7 @@ A fast, interactive directory selector for tmux.
 - **tmux integration** - Launch in popup, open in new window
 - **Homebrew-style UI** - Clean, colored interface
 - **Optional command** - Run any command after selection (or just cd)
+- **In-app settings** - Configure sort order and command from the menu
 
 ## Requirements
 
@@ -19,6 +20,18 @@ A fast, interactive directory selector for tmux.
 - [tmux](https://github.com/tmux/tmux) (optional, for popup/window features)
 
 ## Installation
+
+### Homebrew (recommended)
+
+```bash
+brew tap cvrt-jh/tmux-quickselect
+brew install tmux-quickselect
+
+# Complete setup
+qs-install
+```
+
+### Manual
 
 ```bash
 # Clone the repository
@@ -34,7 +47,7 @@ Add to your `tmux.conf`:
 
 ```bash
 # Quick select popup (prefix + O)
-bind-key O display-popup -E -w 70% -h 60% "nu --login --interactive -c 'qs --tmux'"
+bind-key O display-popup -E -w 70% -h 60% "nu --login -c 'qs --tmux'"
 ```
 
 ## Configuration
@@ -73,6 +86,7 @@ Copy `config.nuon` to `~/.config/tmux-quickselect/config.nuon` and customize:
 | `directories[].label` | Short label in list | required |
 | `directories[].color` | cyan, magenta, green, yellow, blue, red | cyan |
 | `command` | Command after selection (empty = none) | `""` |
+| `sort` | Sort order: `recent`, `alphabetical`, `label` | `recent` |
 | `cache_dir` | History storage location | `~/.cache/tmux-quickselect` |
 | `ui.title` | Header title | `Quick Select` |
 | `ui.icon` | Header icon | `📂` |
