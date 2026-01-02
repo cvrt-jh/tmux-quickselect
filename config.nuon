@@ -1,0 +1,22 @@
+# tmux-quickselect configuration
+# Copy to ~/.config/tmux-quickselect/config.nuon and customize
+{
+    # Directories to scan (subdirectories will be listed)
+    directories: [
+        { path: "~/Git/cvrt-jh", label: "jh", color: "cyan" }
+        { path: "~/Git/cvrt-gmbh", label: "gmbh", color: "magenta" }
+    ]
+
+    # Command to run after selecting (empty = just cd)
+    command: "opencode"
+
+    # Cache directory for usage history
+    cache_dir: "~/.cache/tmux-quickselect"
+
+    # UI settings
+    ui: {
+        title: "Quick Select"
+        icon: "📂"
+        width: 25  # Column width for directory names
+    }
+}
