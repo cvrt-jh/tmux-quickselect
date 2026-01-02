@@ -3,12 +3,14 @@
 {
     # Directories to scan (subdirectories will be listed)
     directories: [
-        { path: "~/Git/cvrt-jh", label: "jh", color: "cyan" }
-        { path: "~/Git/cvrt-gmbh", label: "gmbh", color: "magenta" }
+        { path: "~/Git", label: "git", color: "cyan" }
     ]
 
     # Command to run after selecting (empty = just cd)
-    command: "opencode"
+    command: ""
+
+    # Sort order: "recent" (last used first), "alphabetical", "label"
+    sort: "recent"
 
     # Cache directory for usage history
     cache_dir: "~/.cache/tmux-quickselect"

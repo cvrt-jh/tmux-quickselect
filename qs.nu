@@ -100,11 +100,31 @@ export def --env qs [--tmux (-t), --debug (-d)] {
         }
     } | flatten)
 
-    # Add last_used timestamp and sort
-    let projects = ($all_projects | each {|proj|
+    # Add last_used timestamp
+    let projects_with_history = ($all_projects | each {|proj|
         let last_used = ($history | get -o $proj.path | default null)
         $proj | insert last_used $last_used
-    } | sort-by last_used --reverse)
+    })
+
+    # Sort based on config (default: recent)
+    let sort_mode = ($config | get -o sort | default "recent")
+    let projects = match $sort_mode {
+        "recent" => {
+            # Recent first: items with timestamp sorted by date, then items without timestamp alphabetically
+            let with_ts = ($projects_with_history | where last_used != null | sort-by last_used --reverse)
+            let without_ts = ($projects_with_history | where last_used == null | sort-by name)
+            $with_ts | append $without_ts
+        }
+        "alphabetical" => {
+            $projects_with_history | sort-by name
+        }
+        "label" => {
+            $projects_with_history | sort-by label name
+        }
+        _ => {
+            $projects_with_history | sort-by name
+        }
+    }
 
     # Count projects per group
     let group_counts = ($config.directories | each {|dir|
