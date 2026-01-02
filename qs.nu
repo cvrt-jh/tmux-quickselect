@@ -6,13 +6,12 @@
 
 def get-config [] {
     let config_paths = [
-        ($"~/.config/tmux-quickselect/config.nuon" | path expand)
-        ($"(($env.FILE_PWD? | default '.'))/config.nuon" | path expand)
-    ]
+        "~/.config/tmux-quickselect/config.nuon"
+    ] | each { path expand }
     
-    let config_file = ($config_paths | where { path exists } | first)
+    let config_file = ($config_paths | where { path exists } | get -o 0)
     
-    if ($config_file | is-empty) {
+    if ($config_file == null) {
         # Default configuration
         {
             directories: [
@@ -31,11 +30,17 @@ def get-config [] {
 
 def format-ago [timestamp: string] {
     let diff = (date now) - ($timestamp | into datetime)
-    if $diff < 1min { "just now" }
-    else if $diff < 1hr { $"($diff / 1min | math floor)m ago" }
-    else if $diff < 24hr { $"($diff / 1hr | math floor)h ago" }
-    else if $diff < 7day { $"($diff / 1day | math floor)d ago" }
-    else { $"($diff / 1wk | math floor)w ago" }
+    if $diff < 1min {
+        "just now"
+    } else if $diff < 1hr {
+        $"($diff / 1min | math floor)m ago"
+    } else if $diff < 24hr {
+        $"($diff / 1hr | math floor)h ago"
+    } else if $diff < 7day {
+        $"($diff / 1day | math floor)d ago"
+    } else {
+        $"($diff / 1wk | math floor)w ago"
+    }
 }
 
 def get-ansi-color [color: string] {
@@ -56,7 +61,15 @@ def get-ansi-color [color: string] {
 # Interactive directory selector for tmux
 # Usage: qs        - select and cd into directory
 #        qs --tmux - open in new tmux window (for popup use)
-export def --env qs [--tmux (-t)] {
+#        qs --debug - show debug info and wait
+export def --env qs [--tmux (-t), --debug (-d)] {
+    if $debug {
+        print $"(ansi yellow)DEBUG: qs started(ansi reset)"
+        print $"  PWD: ($env.PWD)"
+        print $"  TERM: ($env.TERM? | default 'not set')"
+        print $"  TMUX: ($env.TMUX? | default 'not set')"
+        print ""
+    }
     let config = (get-config)
     let cache_file = ($"($config.cache_dir)/history.nuon" | path expand)
     
@@ -89,7 +102,7 @@ export def --env qs [--tmux (-t)] {
 
     # Add last_used timestamp and sort
     let projects = ($all_projects | each {|proj|
-        let last_used = ($history | get -i $proj.path | default null)
+        let last_used = ($history | get -o $proj.path | default null)
         $proj | insert last_used $last_used
     } | sort-by last_used --reverse)
 
