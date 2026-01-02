@@ -4,26 +4,31 @@
 
 # ============ Configuration ============
 
+const CONFIG_FILE = "~/.config/tmux-quickselect/config.nuon"
+
 def get-config [] {
-    let config_paths = [
-        "~/.config/tmux-quickselect/config.nuon"
-    ] | each { path expand }
+    let config_file = ($CONFIG_FILE | path expand)
     
-    let config_file = ($config_paths | where { path exists } | get -o 0)
-    
-    if ($config_file == null) {
+    if not ($config_file | path exists) {
         # Default configuration
         {
             directories: [
                 { path: "~/Git", label: "git", color: "cyan" }
             ]
             command: ""
+            sort: "recent"
             cache_dir: "~/.cache/tmux-quickselect"
             ui: { title: "Quick Select", icon: "📂", width: 25 }
         }
     } else {
         open $config_file
     }
+}
+
+def save-config [config: record] {
+    let config_file = ($CONFIG_FILE | path expand)
+    mkdir ($config_file | path dirname)
+    $config | to nuon | save -f $config_file
 }
 
 # ============ Helper Functions ============
@@ -146,8 +151,8 @@ export def --env qs [--tmux (-t), --debug (-d)] {
     print $"  ($counts_str)"
     print ""
 
-    # Build display list
-    let display_list = ($projects | each {|proj|
+    # Build display list for projects
+    let project_list = ($projects | each {|proj|
         let prefix = $"(get-ansi-color $proj.color)($proj.label)(ansi reset)"
         let time_str = if $proj.last_used != null {
             $"(ansi dark_gray)(format-ago $proj.last_used)(ansi reset)"
@@ -159,35 +164,94 @@ export def --env qs [--tmux (-t), --debug (-d)] {
             display: $"($prefix)  ($padded_name) ($time_str)"
             path: $proj.path 
             name: $proj.name
+            type: "project"
         }
     })
+
+    # Config menu items
+    let sort_indicator = match $sort_mode {
+        "recent" => "●"
+        "alphabetical" => "○"
+        "label" => "○"
+        _ => "○"
+    }
+    let config_items = [
+        { display: $"(ansi dark_gray)──────────────────────────────────────(ansi reset)", type: "separator", action: "" }
+        { display: $"(ansi yellow)⚙(ansi reset)  Sort: (ansi white_bold)($sort_mode)(ansi reset)", type: "config", action: "sort" }
+        { display: $"(ansi yellow)⚙(ansi reset)  Command: (ansi white_bold)(if ($config.command | is-empty) { '(none)' } else { $config.command })(ansi reset)", type: "config", action: "command" }
+        { display: $"(ansi red)✕(ansi reset)  Clear history", type: "config", action: "clear_history" }
+    ]
+
+    let display_list = ($project_list | append $config_items)
 
     # Show interactive selection menu
     let selection = ($display_list | input list --display display --fuzzy $"(ansi yellow)Select:(ansi reset)")
 
     if ($selection | is-not-empty) {
-        # Update history
-        let new_history = ($history | upsert $selection.path (date now | format date "%+"))
-        $new_history | save -f $cache_file
+        match $selection.type {
+            "project" => {
+                # Update history
+                let new_history = ($history | upsert $selection.path (date now | format date "%+"))
+                $new_history | save -f $cache_file
 
-        if $tmux {
-            # Open in new tmux window with directory name
-            if ($config.command | is-empty) {
-                tmux new-window -n $selection.name -c $selection.path
-            } else {
-                tmux new-window -n $selection.name -c $selection.path $"nu -e '($config.command)'"
+                if $tmux {
+                    # Open in new tmux window with directory name
+                    if ($config.command | is-empty) {
+                        tmux new-window -n $selection.name -c $selection.path
+                    } else {
+                        tmux new-window -n $selection.name -c $selection.path $"nu -e '($config.command)'"
+                    }
+                } else {
+                    print ""
+                    print $"(ansi green)($line)(ansi reset)"
+                    print $"(ansi green)  ✓(ansi reset) Selected (ansi white_bold)($selection.name)(ansi reset)"
+                    print $"(ansi dark_gray)  → ($selection.path)(ansi reset)"
+                    print $"(ansi green)($line)(ansi reset)"
+                    cd $selection.path
+                    
+                    # Run the configured command if set
+                    if ($config.command | is-not-empty) {
+                        nu -c $config.command
+                    }
+                }
             }
-        } else {
-            print ""
-            print $"(ansi green)($line)(ansi reset)"
-            print $"(ansi green)  ✓(ansi reset) Selected (ansi white_bold)($selection.name)(ansi reset)"
-            print $"(ansi dark_gray)  → ($selection.path)(ansi reset)"
-            print $"(ansi green)($line)(ansi reset)"
-            cd $selection.path
-            
-            # Run the configured command if set
-            if ($config.command | is-not-empty) {
-                nu -c $config.command
+            "config" => {
+                match $selection.action {
+                    "sort" => {
+                        print ""
+                        print $"(ansi yellow)Select sort order:(ansi reset)"
+                        let sort_options = [
+                            { display: $"(if $sort_mode == 'recent' { '● ' } else { '○ ' })Recent first", value: "recent" }
+                            { display: $"(if $sort_mode == 'alphabetical' { '● ' } else { '○ ' })Alphabetical", value: "alphabetical" }
+                            { display: $"(if $sort_mode == 'label' { '● ' } else { '○ ' })By label", value: "label" }
+                        ]
+                        let new_sort = ($sort_options | input list --display display $"(ansi yellow)Sort:(ansi reset)")
+                        if ($new_sort | is-not-empty) {
+                            let new_config = ($config | upsert sort $new_sort.value)
+                            save-config $new_config
+                            print $"(ansi green)✓(ansi reset) Sort order set to (ansi white_bold)($new_sort.value)(ansi reset)"
+                        }
+                    }
+                    "command" => {
+                        print ""
+                        let current = if ($config.command | is-empty) { "" } else { $config.command }
+                        let current_display = if ($current | is-empty) { "(none)" } else { $current }
+                        print $"(ansi yellow)Current command:(ansi reset) ($current_display)"
+                        print $"(ansi dark_gray)Enter new command, empty for just cd:(ansi reset)"
+                        let new_cmd = (input "Command: ")
+                        let new_config = ($config | upsert command $new_cmd)
+                        save-config $new_config
+                        let new_display = if ($new_cmd | is-empty) { "(none)" } else { $new_cmd }
+                        print $"(ansi green)✓(ansi reset) Command set to (ansi white_bold)($new_display)(ansi reset)"
+                    }
+                    "clear_history" => {
+                        {} | save -f $cache_file
+                        print $"(ansi green)✓(ansi reset) History cleared"
+                    }
+                }
+            }
+            "separator" => {
+                # Do nothing for separator
             }
         }
     }
