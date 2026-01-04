@@ -89,10 +89,16 @@ export def --env qs [--tmux (-t), --debug (-d)] {
     }
 
     # Scan all configured directories
+    let show_hidden = ($config | get -o show_hidden | default false)
     let all_projects = ($config.directories | each {|dir|
         let expanded_path = ($dir.path | path expand)
         if ($expanded_path | path exists) {
-            ls $expanded_path | where type == dir | each {|it| 
+            let entries = if $show_hidden {
+                ls -a $expanded_path | where type == dir | where name !~ '/\\.\\.$' | where name !~ '/\\.$'
+            } else {
+                ls $expanded_path | where type == dir
+            }
+            $entries | each {|it| 
                 { 
                     name: ($it.name | path basename)
                     path: ($it.name | path expand)
@@ -182,10 +188,13 @@ export def --env qs [--tmux (-t), --debug (-d)] {
     } else {
         $sort_keys | str join " → "
     }
+    let hidden_status = if $show_hidden { "on" } else { "off" }
     let config_items = [
         { display: $"(ansi dark_gray)──────────────────────────────────────(ansi reset)", type: "separator", action: "" }
         { display: $"(ansi yellow)⚙(ansi reset)  Sort: (ansi white_bold)($sort_display)(ansi reset)", type: "config", action: "sort" }
         { display: $"(ansi yellow)⚙(ansi reset)  Command: (ansi white_bold)(if ($config.command | is-empty) { '(none)' } else { $config.command })(ansi reset)", type: "config", action: "command" }
+        { display: $"(ansi yellow)⚙(ansi reset)  Show hidden: (ansi white_bold)($hidden_status)(ansi reset)", type: "config", action: "toggle_hidden" }
+        { display: $"(ansi blue)📄(ansi reset) Edit config", type: "config", action: "edit_config" }
         { display: $"(ansi red)✕(ansi reset)  Clear history", type: "config", action: "clear_history" }
     ]
 
@@ -262,6 +271,19 @@ export def --env qs [--tmux (-t), --debug (-d)] {
                         save-config $new_config
                         let new_display = if ($new_cmd | is-empty) { "(none)" } else { $new_cmd }
                         print $"(ansi green)✓(ansi reset) Command set to (ansi white_bold)($new_display)(ansi reset)"
+                    }
+                    "toggle_hidden" => {
+                        let new_value = not $show_hidden
+                        let new_config = ($config | upsert show_hidden $new_value)
+                        save-config $new_config
+                        let status = if $new_value { "on" } else { "off" }
+                        print $"(ansi green)✓(ansi reset) Show hidden set to (ansi white_bold)($status)(ansi reset)"
+                    }
+                    "edit_config" => {
+                        let config_path = ($CONFIG_FILE | path expand)
+                        print $"(ansi yellow)Config file:(ansi reset) ($config_path)"
+                        let editor = ($env | get -o EDITOR | default "nano")
+                        ^$editor $config_path
                     }
                     "clear_history" => {
                         {} | save -f $cache_file
