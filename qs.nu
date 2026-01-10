@@ -253,43 +253,81 @@ export def --env qs [--tmux (-t), --debug (-d)] {
                                 let sort_value = if ($new_sort | length) == 1 { $new_sort | first } else { $new_sort }
                                 let new_config = ($config | upsert sort $sort_value)
                                 save-config $new_config
-                                let display = if ($new_sort | length) == 1 { $new_sort | first } else { $new_sort | str join " → " }
-                                print $"(ansi green)✓(ansi reset) Sort order set to (ansi white_bold)($display)(ansi reset)"
-                            } else {
-                                print $"(ansi red)✗(ansi reset) Invalid input"
                             }
                         }
                     }
                     "command" => {
+                        # Load command history
+                        let cmd_history_file = ($"($config.cache_dir)/command_history.nuon" | path expand)
+                        let cmd_history = if ($cmd_history_file | path exists) {
+                            open $cmd_history_file | default []
+                        } else {
+                            []
+                        }
+                        
                         print ""
                         let current = if ($config.command | is-empty) { "" } else { $config.command }
                         let current_display = if ($current | is-empty) { "(none)" } else { $current }
                         print $"(ansi yellow)Current command:(ansi reset) ($current_display)"
-                        print $"(ansi dark_gray)Enter new command, empty for just cd:(ansi reset)"
-                        let new_cmd = (input "Command: ")
-                        let new_config = ($config | upsert command $new_cmd)
-                        save-config $new_config
-                        let new_display = if ($new_cmd | is-empty) { "(none)" } else { $new_cmd }
-                        print $"(ansi green)✓(ansi reset) Command set to (ansi white_bold)($new_display)(ansi reset)"
+                        
+                        let new_cmd = if ($cmd_history | is-empty) {
+                            # No history - just prompt for input
+                            print $"(ansi dark_gray)Enter command, empty for just cd:(ansi reset)"
+                            input "Command: "
+                        } else {
+                            # Show history selection
+                            print $"(ansi dark_gray)Select from history or type new:(ansi reset)"
+                            print ""
+                            
+                            let history_items = ($cmd_history | each {|cmd|
+                                { display: $"  ($cmd)", value: $cmd, type: "history" }
+                            })
+                            let menu_items = [
+                                { display: $"(ansi yellow)▸(ansi reset) Type new command...", value: "__NEW__", type: "new" }
+                                { display: $"(ansi red)✕(ansi reset) Clear command", value: "__CLEAR__", type: "clear" }
+                            ] | append $history_items
+                            
+                            let selection = ($menu_items | input list --display display "Select:")
+                            
+                            if ($selection | is-empty) {
+                                null  # User cancelled
+                            } else if $selection.value == "__NEW__" {
+                                input "Command: "
+                            } else if $selection.value == "__CLEAR__" {
+                                ""
+                            } else {
+                                $selection.value
+                            }
+                        }
+                        
+                        if ($new_cmd != null) {
+                            # Save to config
+                            let new_config = ($config | upsert command $new_cmd)
+                            save-config $new_config
+                            
+                            # Update command history (add new commands, keep unique, limit to 10)
+                            if ($new_cmd | is-not-empty) and ($new_cmd not-in $cmd_history) {
+                                let updated_history = ([$new_cmd] | append $cmd_history | take 10)
+                                $updated_history | save -f $cmd_history_file
+                            }
+                        }
                     }
                     "toggle_hidden" => {
                         let new_value = not $show_hidden
                         let new_config = ($config | upsert show_hidden $new_value)
                         save-config $new_config
-                        let status = if $new_value { "on" } else { "off" }
-                        print $"(ansi green)✓(ansi reset) Show hidden set to (ansi white_bold)($status)(ansi reset)"
                     }
                     "edit_config" => {
                         let config_path = ($CONFIG_FILE | path expand)
-                        print $"(ansi yellow)Config file:(ansi reset) ($config_path)"
                         let editor = ($env | get -o EDITOR | default "nano")
                         ^$editor $config_path
                     }
                     "clear_history" => {
                         {} | save -f $cache_file
-                        print $"(ansi green)✓(ansi reset) History cleared"
                     }
                 }
+                # Re-run qs to stay in menu after config changes
+                qs --tmux=$tmux
             }
             "separator" => {
                 # Do nothing for separator

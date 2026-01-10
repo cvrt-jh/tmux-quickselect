@@ -12,3 +12,4 @@ config.local.nuon
 # Development files (not for public repo)
 AGENTS.md
 PROGRESS.md
+CLAUDE.md
