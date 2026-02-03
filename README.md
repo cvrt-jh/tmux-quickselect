@@ -1,5 +1,9 @@
 # tmux-quickselect
 
+[![Nushell](https://img.shields.io/badge/Nushell-0.90+-green.svg)](https://www.nushell.sh/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![tmux](https://img.shields.io/badge/tmux-optional-blue.svg)](https://github.com/tmux/tmux)
+
 A fast, interactive directory selector for tmux.
 
 > **Note:** Currently only tested with [Nushell](https://www.nushell.sh/). Bash/Zsh support planned.
@@ -31,7 +35,7 @@ qs-install
 
 ```bash
 # Clone the repository
-git clone https://github.com/cvrt-gmbh/tmux-quickselect.git ~/.config/tmux-quickselect
+git clone https://github.com/cvrt-jh/tmux-quickselect.git ~/.config/tmux-quickselect
 
 # Add to your Nushell config (~/.config/nushell/config.nu)
 source ~/.config/tmux-quickselect/qs.nu
