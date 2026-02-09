@@ -3,12 +3,12 @@
 
 class TmuxQuickselect < Formula
   desc "Fast, interactive directory selector for tmux with Nushell"
-  homepage "https://github.com/cvrt-gmbh/tmux-quickselect"
-  url "https://github.com/cvrt-gmbh/tmux-quickselect.git",
-      tag:      "v1.0.3",
-      revision: "9db99900b72c69df877a7c588d1a7f577a8fad6b"
+  homepage "https://github.com/cvrt-jh/tmux-quickselect"
+  url "https://github.com/cvrt-jh/tmux-quickselect.git",
+      tag:      "v1.0.4",
+      revision: "1c35ea14cf672ab3b5157428eb688d7da4101330"
   license "MIT"
-  head "https://github.com/cvrt-gmbh/tmux-quickselect.git", branch: "main"
+  head "https://github.com/cvrt-jh/tmux-quickselect.git", branch: "main"
 
   depends_on "nushell"
 
@@ -80,7 +80,7 @@ class TmuxQuickselect < Formula
             if ! grep -q "qs.nu" "$NU_CONFIG" 2>/dev/null; then
               echo "" >> "$NU_CONFIG"
               echo "# tmux-quickselect: Directory selector" >> "$NU_CONFIG"
-              echo "# https://github.com/cvrt-gmbh/tmux-quickselect" >> "$NU_CONFIG"
+              echo "# https://github.com/cvrt-jh/tmux-quickselect" >> "$NU_CONFIG"
               echo "source $QS_SOURCE" >> "$NU_CONFIG"
               echo -e "✓ Added to Nushell config: ${CYAN}$NU_CONFIG${NC}"
             else
@@ -96,7 +96,7 @@ class TmuxQuickselect < Formula
             if ! grep -q "qs --tmux" "$TMUX_CONFIG" 2>/dev/null; then
               echo "" >> "$TMUX_CONFIG"
               echo "# tmux-quickselect: Quick directory selector (Ctrl+A O)" >> "$TMUX_CONFIG"
-              echo "# https://github.com/cvrt-gmbh/tmux-quickselect" >> "$TMUX_CONFIG"
+              echo "# https://github.com/cvrt-jh/tmux-quickselect" >> "$TMUX_CONFIG"
               echo "$TMUX_BIND" >> "$TMUX_CONFIG"
               echo -e "✓ Added to tmux config: ${CYAN}$TMUX_CONFIG${NC}"
             else
