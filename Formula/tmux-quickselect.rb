@@ -5,38 +5,41 @@ class TmuxQuickselect < Formula
   desc "Fast, interactive directory selector for tmux"
   homepage "https://github.com/cvrt-jh/tmux-quickselect"
   url "https://github.com/cvrt-jh/tmux-quickselect.git",
-      tag:      "v1.0.5",
-      revision: "abc123def456"
+      tag:      "v2.0.0",
+      revision: "PLACEHOLDER"
   license "MIT"
   head "https://github.com/cvrt-jh/tmux-quickselect.git", branch: "main"
 
   depends_on "rust" => :build
 
   def install
-    system "cargo", "install", "--locked", "--root", prefix, "--path", "."
-    (libexec/"plugins").install Dir["plugins/*.rs"]
+    system "cargo", "install", *std_cargo_args
+    (share/"tmux-quickselect/shell").install Dir["shell/*"]
     (share/"tmux-quickselect").install "config.toml"
   end
 
   def caveats
     <<~EOS
-      To use tmux-quickselect, add the following to your shell config:
+      Shell integration (pick one):
 
-      For Nushell (~/.config/nushell/config.nu):
-        use #{libexec}/qs.nu
+      Nushell (~/.config/nushell/config.nu):
+        source #{share}/tmux-quickselect/shell/qs.nu
 
-      For Bash/Zsh (~/.bashrc, ~/.zshrc):
-        source #{libexec}/qs.sh
+      Bash (~/.bashrc):
+        source #{share}/tmux-quickselect/shell/qs.bash
 
-      Add to your tmux config (~/.tmux.conf):
+      Zsh (~/.zshrc):
+        source #{share}/tmux-quickselect/shell/qs.zsh
+
+      tmux keybinding (tmux.conf):
         bind-key O display-popup -E -w 70% -h 60% "qs --tmux"
 
-      Configuration file location:
-        #{share}/tmux-quickselect/config.toml
+      Config file:
+        cp #{share}/tmux-quickselect/config.toml ~/.config/tmux-quickselect/config.toml
     EOS
   end
 
   test do
-    assert_predicate bin/"qs", :exist?
+    assert_match "directory selector", shell_output("#{bin}/qs --help")
   end
 end
