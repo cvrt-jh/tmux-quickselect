@@ -8,6 +8,10 @@
 
 # Local config overrides
 config.local.nuon
+config.local.toml
+
+# Rust build artifacts
+/target
 
 # Development files (not for public repo)
 AGENTS.md
