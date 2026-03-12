@@ -1,3 +1,7 @@
+pub mod config;
+pub mod history;
+pub mod tmux;
+
 use clap::Parser;
 
 #[derive(Parser)]
