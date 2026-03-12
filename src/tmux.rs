@@ -28,10 +28,9 @@ pub fn open_in_tmux(name: &str, path: &str, command: Option<&str>) -> std::io::R
     if status.success() {
         Ok(())
     } else {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("tmux exited with status: {status}"),
-        ))
+        Err(std::io::Error::other(format!(
+            "tmux exited with status: {status}"
+        )))
     }
 }
 

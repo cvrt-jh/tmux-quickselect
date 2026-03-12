@@ -188,7 +188,7 @@ fn build_project(
 ///
 /// - `Single(key)`: sort by that single key.
 /// - `Multi(keys)`: apply keys in reverse order so the *first* key wins.
-pub fn sort_projects(projects: &mut Vec<Project>, sort_order: &SortOrder) {
+pub fn sort_projects(projects: &mut [Project], sort_order: &SortOrder) {
     match sort_order {
         SortOrder::Single(key) => {
             apply_sort(projects, key);
@@ -202,9 +202,9 @@ pub fn sort_projects(projects: &mut Vec<Project>, sort_order: &SortOrder) {
     }
 }
 
-fn apply_sort(projects: &mut Vec<Project>, key: &str) {
+fn apply_sort(projects: &mut [Project], key: &str) {
     match key {
-        "recent" => projects.sort_by(|a, b| cmp_recent(a, b)),
+        "recent" => projects.sort_by(cmp_recent),
         "name" | "alphabetical" => projects.sort_by(|a, b| a.name.cmp(&b.name)),
         "label" => projects.sort_by(|a, b| a.label.cmp(&b.label)),
         _ => {} // unknown key: no-op
