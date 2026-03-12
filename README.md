@@ -37,22 +37,22 @@ Source the appropriate wrapper for your shell so that `qs` can change your worki
 **Nushell** — add to `~/.config/nushell/config.nu`:
 
 ```nu
-source /path/to/tmux-quickselect/shell/qs.nu
+source "$(brew --prefix)/share/tmux-quickselect/shell/qs.nu"
 ```
 
 **Bash** — add to `~/.bashrc`:
 
 ```bash
-source /path/to/tmux-quickselect/shell/qs.bash
+source "$(brew --prefix)/share/tmux-quickselect/shell/qs.bash"
 ```
 
 **Zsh** — add to `~/.zshrc`:
 
 ```zsh
-source /path/to/tmux-quickselect/shell/qs.zsh
+source "$(brew --prefix)/share/tmux-quickselect/shell/qs.zsh"
 ```
 
-When installed via Homebrew, the shell wrappers are at `$(brew --prefix)/share/tmux-quickselect/`.
+For manual installs, replace the `$(brew --prefix)/share/tmux-quickselect/` prefix with the path to the `shell/` directory in your clone.
 
 ## tmux Keybinding
 
