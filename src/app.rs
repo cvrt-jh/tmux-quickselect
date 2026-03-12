@@ -49,18 +49,28 @@ impl App {
     }
 
     pub fn update_filter(&mut self) {
-        let query = self.filter_input.to_lowercase();
-        if query.is_empty() {
+        if self.filter_input.is_empty() {
             self.filtered_indices = (0..self.projects.len()).collect();
         } else {
-            self.filtered_indices = self
+            use fuzzy_matcher::skim::SkimMatcherV2;
+            use fuzzy_matcher::FuzzyMatcher;
+
+            let matcher = SkimMatcherV2::default();
+            let mut scored: Vec<(usize, i64)> = self
                 .projects
                 .iter()
                 .enumerate()
-                .filter(|(_, p)| p.name.to_lowercase().contains(&query))
-                .map(|(i, _)| i)
+                .filter_map(|(i, p)| {
+                    matcher
+                        .fuzzy_match(&p.name, &self.filter_input)
+                        .map(|score| (i, score))
+                })
                 .collect();
+
+            scored.sort_by(|a, b| b.1.cmp(&a.1)); // highest score first
+            self.filtered_indices = scored.into_iter().map(|(i, _)| i).collect();
         }
+
         // Clamp selection
         if self.filtered_indices.is_empty() {
             self.selected = 0;
@@ -351,5 +361,30 @@ mod tests {
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].0, "test");
         assert_eq!(groups[0].1, 2);
+    }
+
+    #[test]
+    fn test_fuzzy_filter() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dir.path().join("my-awesome-project")).unwrap();
+        std::fs::create_dir(dir.path().join("another-thing")).unwrap();
+        std::fs::create_dir(dir.path().join("map-renderer")).unwrap();
+
+        let config = make_test_config(dir.path());
+        let history = History::default();
+        let mut app = App::new(config, history, None, false);
+
+        // Fuzzy match "map" should match "my-awesome-project" and "map-renderer"
+        app.filter_input = "map".to_string();
+        app.update_filter();
+
+        let visible: Vec<&str> = app
+            .visible_projects()
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect();
+        assert!(visible.contains(&"map-renderer")); // exact prefix match
+        // "my-awesome-project" might match too (m-a-p), that's OK
+        assert!(!visible.contains(&"another-thing")); // should not match
     }
 }
