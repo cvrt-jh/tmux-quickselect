@@ -1,0 +1,33 @@
+# tmux-quickselect configuration
+# Copy to ~/.config/tmux-quickselect/config.toml and customize
+
+# Sort order: "recent", "alphabetical", "label", or ["label", "recent"]
+sort = "recent"
+
+# Command to run in new tmux window (empty = just open shell)
+# command = "nvim"
+
+# Show hidden directories (starting with .)
+show_hidden = false
+
+# Cache directory for usage history
+cache_dir = "~/.cache/tmux-quickselect"
+
+# UI settings
+[ui]
+title = "Quick Select"
+icon = "📂"
+width = 25   # column width for directory names
+
+# Directories to scan (subdirectories become selectable)
+# Use → to drill down into nested folders interactively
+[[directories]]
+path = "~/Git"
+label = "git"
+color = "cyan"
+
+# Add more directory groups:
+# [[directories]]
+# path = "~/projects"
+# label = "proj"
+# color = "green"

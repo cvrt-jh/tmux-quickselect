@@ -1,100 +1,150 @@
 # tmux-quickselect
 
-[![Nushell](https://img.shields.io/badge/Nushell-0.90+-green.svg)](https://www.nushell.sh/)
+[![Rust](https://img.shields.io/badge/Rust-1.75+-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![tmux](https://img.shields.io/badge/tmux-optional-blue.svg)](https://github.com/tmux/tmux)
 
 A fast, interactive directory selector for tmux.
 
-> **Note:** Currently only tested with [Nushell](https://www.nushell.sh/). Bash/Zsh support planned.
-
 ## Features
 
-- **Fuzzy search** - Find directories instantly
-- **Usage tracking** - Sorted by "last used" with relative timestamps
-- **Configurable** - Define your own watch directories
+- **Fuzzy search** - Find directories instantly by typing
+- **Git status indicators** - See dirty (`●`) and clean (`○`) repos at a glance
+- **Usage tracking** - Sorted by last used with relative timestamps
+- **Drill-down navigation** - Browse nested folders interactively with `→`
 - **tmux integration** - Launch in popup, open in new window
-- **Homebrew-style UI** - Clean, colored interface
-- **In-app settings** - Configure sort order and commands from the menu
-
-## Requirements
-
-- [Nushell](https://www.nushell.sh/) v0.90+
-- [tmux](https://github.com/tmux/tmux) (optional, for popup/window features)
+- **TOML config** - Simple, readable configuration
+- **Shell-independent** - Works with Nushell, Bash, and Zsh
 
 ## Installation
 
 ### Homebrew (recommended)
 
 ```bash
-brew install cvrt-gmbh/tmux-quickselect/tmux-quickselect
-qs-install
+brew install cvrt-jh/tap/tmux-quickselect
 ```
 
-### Manual
+### From source
 
 ```bash
-# Clone the repository
-git clone https://github.com/cvrt-jh/tmux-quickselect.git ~/.config/tmux-quickselect
-
-# Add to your Nushell config (~/.config/nushell/config.nu)
-source ~/.config/tmux-quickselect/qs.nu
+cargo install --git https://github.com/cvrt-jh/tmux-quickselect
 ```
 
-### tmux Keybinding (optional)
+## Shell Integration
 
-Add to your `tmux.conf`:
+Source the appropriate wrapper for your shell so that `qs` can change your working directory.
+
+**Nushell** — add to `~/.config/nushell/config.nu`:
+
+```nu
+source /path/to/tmux-quickselect/shell/qs.nu
+```
+
+**Bash** — add to `~/.bashrc`:
 
 ```bash
-# Quick select popup (prefix + O)
-bind-key O display-popup -E -w 70% -h 60% "nu --login -c 'qs --tmux'"
+source /path/to/tmux-quickselect/shell/qs.bash
+```
+
+**Zsh** — add to `~/.zshrc`:
+
+```zsh
+source /path/to/tmux-quickselect/shell/qs.zsh
+```
+
+When installed via Homebrew, the shell wrappers are at `$(brew --prefix)/share/tmux-quickselect/`.
+
+## tmux Keybinding
+
+Add to your `tmux.conf` to open the selector with `prefix + O`:
+
+```bash
+bind-key O display-popup -E -w 70% -h 60% "qs --tmux"
 ```
 
 ## Configuration
 
-Copy `config.nuon` to `~/.config/tmux-quickselect/config.nuon` and customize:
+Copy `config.toml` to `~/.config/tmux-quickselect/config.toml` and customize:
 
-```nuon
-{
-    # Directories to scan (subdirectories become selectable)
-    directories: [
-        { path: "~/Git/work", label: "work", color: "cyan" }
-        { path: "~/Git/personal", label: "personal", color: "magenta" }
-        { path: "~/projects", label: "proj", color: "green" }
-    ]
+```toml
+# Sort order: "recent", "alphabetical", "label", or ["label", "recent"]
+sort = "recent"
 
-    # Command to run after selecting (empty = just cd)
-    command: "nvim"  # or "opencode", "code .", "" for none
+# Command to run in new tmux window (empty = just open shell)
+# command = "nvim"
 
-    # Cache directory for usage history
-    cache_dir: "~/.cache/tmux-quickselect"
+# Show hidden directories (starting with .)
+show_hidden = false
 
-    # UI customization
-    ui: {
-        title: "Quick Select"
-        icon: "📂"
-        width: 25
-    }
-}
+# Cache directory for usage history
+cache_dir = "~/.cache/tmux-quickselect"
+
+# UI settings
+[ui]
+title = "Quick Select"
+icon = "📂"
+width = 25   # column width for directory names
+
+# Directories to scan (subdirectories become selectable)
+[[directories]]
+path = "~/Git"
+label = "git"
+color = "cyan"
+
+# [[directories]]
+# path = "~/projects"
+# label = "proj"
+# color = "green"
 ```
 
 ### Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `directories[].path` | Directory to scan | required |
-| `directories[].label` | Short label in list | required |
-| `directories[].color` | cyan, magenta, green, yellow, blue, red | cyan |
-| `command` | Command after selection (empty = none) | `""` |
-| `sort` | Sort order: `recent`, `alphabetical`, `label` | `recent` |
+| `sort` | Sort order: `recent`, `alphabetical`, `label`, or array | `recent` |
+| `command` | Command to run after selection (empty = open shell) | `""` |
+| `show_hidden` | Show directories starting with `.` | `false` |
 | `cache_dir` | History storage location | `~/.cache/tmux-quickselect` |
 | `ui.title` | Header title | `Quick Select` |
 | `ui.icon` | Header icon | `📂` |
 | `ui.width` | Column width for names | `25` |
+| `directories[].path` | Directory to scan | required |
+| `directories[].label` | Short label shown in list | required |
+| `directories[].color` | `cyan`, `magenta`, `green`, `yellow`, `blue`, `red` | `cyan` |
 
-### Interactive Navigation
+## Usage
 
-Directories with subdirectories show a `→` indicator. Select them to drill down:
+```bash
+qs          # Open selector, cd into selected directory
+qs --tmux   # Open selected directory in a new tmux window
+```
+
+Press `prefix + O` in tmux to open the selector in a popup.
+
+## Keybindings
+
+| Key | Action |
+|-----|--------|
+| `↑` / `↓` or `k` / `j` | Navigate up / down |
+| `Enter` | Select directory or drill into folder |
+| Type any characters | Filter list (fuzzy match) |
+| `Esc` | Back to parent / clear filter / quit |
+| `q` | Quit without selecting |
+| `e` | Open config file in `$EDITOR` |
+| `h` | Toggle hidden directories |
+
+## Git Status Indicators
+
+Repositories show a status indicator next to their name:
+
+| Indicator | Meaning |
+|-----------|---------|
+| `●` (red) | Dirty — uncommitted changes |
+| `○` (green) | Clean — working tree is clean |
+
+## Drill-Down Navigation
+
+Directories with subdirectories show a `→` indicator. Press Enter to browse inside:
 
 ```
   git  client-a                    →  2h ago
@@ -102,45 +152,7 @@ Directories with subdirectories show a `→` indicator. Select them to drill dow
   git  standalone-project             1d ago
 ```
 
-When browsing inside a directory:
-- **`← ..`** - Go back to parent directory
-- **`✓ Select this folder`** - Select the current directory
-- Select a subdirectory to drill deeper
-
-This is useful when you organize projects in nested folders like `~/Git/client/project/`.
-
-## Usage
-
-```bash
-qs          # Select directory and cd into it
-qs --tmux   # Open in new tmux window
-qs -t       # Short form
-```
-
-### tmux Popup
-
-Press `prefix + O` (e.g., `Ctrl+A` then `Shift+O`) to open the selector in a popup.
-
-## Example
-
-```
-══════════════════════════════════════════════════════════
-  📂 Quick Select
-══════════════════════════════════════════════════════════
-
-  work: 6    personal: 11
-
-Select: |
-> work  my-app                    just now
-  work  api-server                2h ago
-  personal  dotfiles              1d ago
-  personal  blog                  3d ago
-  work  legacy-code               -
-```
-
-## Limitations
-
-- **Timestamp tracking**: The "last used" timestamp is only updated when selecting via `qs`. Regular `cd` commands are not tracked. For full directory tracking, consider integrating with [zoxide](https://github.com/ajeetdsouza/zoxide).
+Press `Esc` or `Backspace` to return to the parent level.
 
 ## License
 
