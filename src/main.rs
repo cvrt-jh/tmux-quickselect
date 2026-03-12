@@ -1,5 +1,6 @@
 pub mod config;
 pub mod history;
+pub mod scanner;
 pub mod tmux;
 
 use clap::Parser;
