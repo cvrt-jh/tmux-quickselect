@@ -147,9 +147,24 @@ impl Default for Config {
 
 impl Config {
     pub fn load() -> Config {
-        let config_dir = dirs::config_dir()
+        // Check XDG (~/.config) first, then platform config dir
+        let xdg_dir = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("~"))
+            .join(".config")
+            .join("tmux-quickselect");
+
+        let platform_dir = dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("~/.config"))
             .join("tmux-quickselect");
+
+        // Try XDG first, then platform dir
+        let config_dir = if xdg_dir.join("config.toml").exists() {
+            xdg_dir
+        } else if platform_dir.join("config.toml").exists() {
+            platform_dir
+        } else {
+            xdg_dir // default to XDG for migration hints
+        };
 
         let toml_path = config_dir.join("config.toml");
         let nuon_path = config_dir.join("config.nuon");

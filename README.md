@@ -1,17 +1,20 @@
 # tmux-quickselect
 
-[![Rust](https://img.shields.io/badge/Rust-1.75+-orange.svg)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/Rust-1.85+-orange.svg)](https://www.rust-lang.org/)
+[![ratatui](https://img.shields.io/badge/ratatui-0.29-blue.svg)](https://ratatui.rs/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![tmux](https://img.shields.io/badge/tmux-optional-blue.svg)](https://github.com/tmux/tmux)
 
-A fast, interactive directory selector for tmux.
+A fast, interactive directory selector for tmux. Built with [ratatui](https://ratatui.rs/).
 
 ## Features
 
 - **Fuzzy search** - Find directories instantly by typing
+- **Deep search** - Press `/` to recursively search across all configured directories
 - **Git status indicators** - See dirty (`●`) and clean (`○`) repos at a glance
 - **Usage tracking** - Sorted by last used with relative timestamps
 - **Drill-down navigation** - Browse nested folders interactively with `→`
+- **Select current folder** - Press `Tab` to select the folder you're browsing
 - **tmux integration** - Launch in popup, open in new window
 - **TOML config** - Simple, readable configuration
 - **Shell-independent** - Works with Nushell, Bash, and Zsh
@@ -127,8 +130,10 @@ Press `prefix + O` in tmux to open the selector in a popup.
 |-----|--------|
 | `↑` / `↓` or `k` / `j` | Navigate up / down |
 | `Enter` | Select directory or drill into folder |
+| `/` | Deep search across all directories recursively |
+| `Tab` | Select the current browsing folder |
 | Type any characters | Filter list (fuzzy match) |
-| `Esc` | Back to parent / clear filter / quit |
+| `Esc` | Exit search / back to parent / clear filter / quit |
 | `q` | Quit without selecting |
 | `e` | Open config file in `$EDITOR` |
 | `h` | Toggle hidden directories |

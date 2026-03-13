@@ -72,7 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Event loop
     loop {
-        terminal.draw(|f| ui::render(f, &app))?;
+        terminal.draw(|f| ui::render(f, &mut app))?;
 
         if let Event::Key(key) = event::read()? {
             // Only handle Press events (avoid repeats on some terminals)
@@ -84,10 +84,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             if key.code == KeyCode::Char('e') && app.filter_input.is_empty() {
                 let editor =
                     std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
-                let config_dir = dirs::config_dir()
+                let xdg_path = dirs::home_dir()
+                    .unwrap_or_else(|| std::path::PathBuf::from("~"))
+                    .join(".config/tmux-quickselect/config.toml");
+                let platform_path = dirs::config_dir()
                     .unwrap_or_else(|| std::path::PathBuf::from("~/.config"))
-                    .join("tmux-quickselect")
-                    .join("config.toml");
+                    .join("tmux-quickselect/config.toml");
+                let config_dir = if xdg_path.exists() {
+                    xdg_path
+                } else if platform_path.exists() {
+                    platform_path
+                } else {
+                    xdg_path
+                };
 
                 // Temporarily leave alternate screen
                 disable_raw_mode()?;

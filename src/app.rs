@@ -1,15 +1,18 @@
 use crate::config::Config;
 use crate::history::History;
-use crate::scanner::{scan_all, sort_projects, Project};
+use crate::scanner::{scan_all, scan_recursive, sort_projects, Project};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 pub struct App {
     pub config: Config,
     pub history: History,
     pub projects: Vec<Project>,
+    pub deep_projects: Option<Vec<Project>>,
     pub filtered_indices: Vec<usize>,
     pub selected: usize,
+    pub scroll_offset: usize,
     pub filter_input: String,
+    pub search_mode: bool,
     pub tmux_mode: bool,
     pub browsing_path: Option<String>,
     pub nav_stack: Vec<String>,
@@ -23,9 +26,12 @@ impl App {
             config,
             history,
             projects: Vec::new(),
+            deep_projects: None,
             filtered_indices: Vec::new(),
             selected: 0,
+            scroll_offset: 0,
             filter_input: String::new(),
+            search_mode: false,
             tmux_mode: tmux,
             browsing_path: path,
             nav_stack: Vec::new(),
@@ -46,29 +52,71 @@ impl App {
         self.filter_input.clear();
         self.filtered_indices = (0..self.projects.len()).collect();
         self.selected = 0;
+        self.scroll_offset = 0;
+    }
+
+    /// Returns the project list that filtering operates on:
+    /// deep_projects when in search mode, otherwise the shallow projects.
+    pub fn active_projects(&self) -> &[Project] {
+        if self.search_mode {
+            self.deep_projects.as_deref().unwrap_or(&self.projects)
+        } else {
+            &self.projects
+        }
+    }
+
+    /// Lazily initialize deep (recursive) project scan.
+    fn ensure_deep_projects(&mut self) {
+        if self.deep_projects.is_none() {
+            self.deep_projects = Some(scan_recursive(&self.config, &self.history));
+        }
     }
 
     pub fn update_filter(&mut self) {
-        if self.filter_input.is_empty() {
+        if self.filter_input.is_empty() && !self.search_mode {
             self.filtered_indices = (0..self.projects.len()).collect();
         } else {
-            use fuzzy_matcher::skim::SkimMatcherV2;
-            use fuzzy_matcher::FuzzyMatcher;
+            // When in search mode or filtering, use deep projects
+            if self.search_mode {
+                self.ensure_deep_projects();
+            }
 
-            let matcher = SkimMatcherV2::default();
-            let mut scored: Vec<(usize, i64)> = self
-                .projects
-                .iter()
-                .enumerate()
-                .filter_map(|(i, p)| {
-                    matcher
-                        .fuzzy_match(&p.name, &self.filter_input)
-                        .map(|score| (i, score))
-                })
-                .collect();
+            let source = if self.search_mode {
+                self.deep_projects.as_deref().unwrap_or(&self.projects)
+            } else {
+                &self.projects as &[Project]
+            };
 
-            scored.sort_by(|a, b| b.1.cmp(&a.1)); // highest score first
-            self.filtered_indices = scored.into_iter().map(|(i, _)| i).collect();
+            if self.filter_input.is_empty() {
+                self.filtered_indices = (0..source.len()).collect();
+            } else {
+                use fuzzy_matcher::skim::SkimMatcherV2;
+                use fuzzy_matcher::FuzzyMatcher;
+
+                let matcher = SkimMatcherV2::default();
+                // Match against the relative path from home for better deep search
+                let home = dirs::home_dir()
+                    .map(|h| h.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+
+                let mut scored: Vec<(usize, i64)> = source
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, p)| {
+                        let match_str = if self.search_mode {
+                            p.path.strip_prefix(&home).unwrap_or(&p.path)
+                        } else {
+                            &p.name
+                        };
+                        matcher
+                            .fuzzy_match(match_str, &self.filter_input)
+                            .map(|score| (i, score))
+                    })
+                    .collect();
+
+                scored.sort_by(|a, b| b.1.cmp(&a.1));
+                self.filtered_indices = scored.into_iter().map(|(i, _)| i).collect();
+            }
         }
 
         // Clamp selection
@@ -88,10 +136,23 @@ impl App {
         self.selected = new_sel as usize;
     }
 
+    /// Adjust scroll_offset so that `self.selected` is visible within `visible_height` rows.
+    pub fn adjust_scroll(&mut self, visible_height: usize) {
+        if visible_height == 0 {
+            return;
+        }
+        if self.selected < self.scroll_offset {
+            self.scroll_offset = self.selected;
+        } else if self.selected >= self.scroll_offset + visible_height {
+            self.scroll_offset = self.selected + 1 - visible_height;
+        }
+    }
+
     pub fn visible_projects(&self) -> Vec<&Project> {
+        let source = self.active_projects();
         self.filtered_indices
             .iter()
-            .map(|&i| &self.projects[i])
+            .filter_map(|&i| source.get(i))
             .collect()
     }
 
@@ -100,9 +161,20 @@ impl App {
             return;
         }
         let idx = self.filtered_indices[self.selected];
-        let project = self.projects[idx].clone();
+        let source = if self.search_mode {
+            self.deep_projects.as_deref().unwrap_or(&self.projects)
+        } else {
+            &self.projects
+        };
+        let project = match source.get(idx) {
+            Some(p) => p.clone(),
+            None => return,
+        };
 
-        if project.has_children {
+        if self.search_mode {
+            // In search mode, always select directly
+            self.selected_project = Some(project);
+        } else if project.has_children {
             self.nav_stack.push(
                 self.browsing_path
                     .clone()
@@ -140,7 +212,13 @@ impl App {
             KeyCode::Down => self.move_selection(1),
             KeyCode::Enter => self.select_current(),
             KeyCode::Backspace => {
-                if self.filter_input.is_empty() && self.browsing_path.is_some() {
+                if self.search_mode {
+                    self.filter_input.pop();
+                    if self.filter_input.is_empty() {
+                        // Stay in search mode but show all deep results
+                    }
+                    self.update_filter();
+                } else if self.filter_input.is_empty() && self.browsing_path.is_some() {
                     self.go_back();
                 } else {
                     self.filter_input.pop();
@@ -148,7 +226,12 @@ impl App {
                 }
             }
             KeyCode::Esc => {
-                if !self.filter_input.is_empty() {
+                if self.search_mode {
+                    self.search_mode = false;
+                    self.filter_input.clear();
+                    self.filtered_indices = (0..self.projects.len()).collect();
+                    self.selected = 0;
+                } else if !self.filter_input.is_empty() {
                     self.filter_input.clear();
                     self.update_filter();
                 } else if self.browsing_path.is_some() {
@@ -160,8 +243,28 @@ impl App {
             KeyCode::Char('q') if self.filter_input.is_empty() => {
                 self.should_quit = true;
             }
-            KeyCode::Char('h') if self.filter_input.is_empty() => {
+            KeyCode::Tab if self.browsing_path.is_some() => {
+                // Select the current browsing directory itself
+                if let Some(ref bp) = self.browsing_path.clone() {
+                    let name = std::path::Path::new(bp)
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| bp.clone());
+                    self.selected_project = Some(Project {
+                        name,
+                        path: bp.clone(),
+                        ..Default::default()
+                    });
+                }
+            }
+            KeyCode::Char('/') if self.filter_input.is_empty() && !self.search_mode => {
+                self.search_mode = true;
+                self.filter_input.clear();
+                self.update_filter();
+            }
+            KeyCode::Char('h') if self.filter_input.is_empty() && !self.search_mode => {
                 self.config.show_hidden = !self.config.show_hidden;
+                self.deep_projects = None; // invalidate deep cache
                 self.scan();
             }
             KeyCode::Char('e') if self.filter_input.is_empty() => {

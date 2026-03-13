@@ -222,6 +222,103 @@ fn cmp_recent(a: &Project, b: &Project) -> Ordering {
     }
 }
 
+// ── scan_recursive ───────────────────────────────────────────────────────────
+
+/// Recursively scan all configured directories for subdirectories.
+/// Skips hidden entries when `show_hidden` is false.
+/// Skips common non-project directories (node_modules, target, .git, etc.).
+pub fn scan_recursive(config: &Config, history: &History) -> Vec<Project> {
+    let show_hidden = config.show_hidden;
+    let mut results = Vec::new();
+
+    for dir_entry in &config.directories {
+        let expanded = expand_path(&dir_entry.path);
+        scan_recursive_inner(
+            &expanded,
+            &dir_entry.label,
+            &dir_entry.color,
+            history,
+            show_hidden,
+            &mut results,
+            0,
+            6, // max depth
+        );
+    }
+
+    results
+}
+
+const SKIP_DIRS: &[&str] = &[
+    "node_modules",
+    "target",
+    ".git",
+    ".next",
+    "dist",
+    "build",
+    ".cache",
+    "vendor",
+    "__pycache__",
+    ".venv",
+    "coverage",
+];
+
+fn scan_recursive_inner(
+    path: &str,
+    label: &str,
+    color: &str,
+    history: &History,
+    show_hidden: bool,
+    results: &mut Vec<Project>,
+    depth: usize,
+    max_depth: usize,
+) {
+    if depth >= max_depth {
+        return;
+    }
+
+    let dir = match std::fs::read_dir(path) {
+        Ok(d) => d,
+        Err(_) => return,
+    };
+
+    for entry in dir.flatten() {
+        let file_name = entry.file_name();
+        let name = file_name.to_string_lossy();
+
+        if !show_hidden && name.starts_with('.') {
+            continue;
+        }
+
+        if SKIP_DIRS.contains(&name.as_ref()) {
+            continue;
+        }
+
+        let ft = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+
+        if !ft.is_dir() {
+            continue;
+        }
+
+        let child_path = entry.path().to_string_lossy().into_owned();
+        let project = build_project(child_path.clone(), label, color, history, show_hidden);
+        results.push(project);
+
+        scan_recursive_inner(
+            &child_path,
+            label,
+            color,
+            history,
+            show_hidden,
+            results,
+            depth + 1,
+            max_depth,
+        );
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
