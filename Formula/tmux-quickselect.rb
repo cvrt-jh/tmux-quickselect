@@ -6,7 +6,7 @@ class TmuxQuickselect < Formula
   homepage "https://github.com/cvrt-jh/tmux-quickselect"
   url "https://github.com/cvrt-jh/tmux-quickselect.git",
       tag:      "v2.0.0",
-      revision: "PLACEHOLDER"
+      revision: "cc17853954e0e35cd45146b2ea59929818c12da1"
   license "MIT"
   head "https://github.com/cvrt-jh/tmux-quickselect.git", branch: "main"
 
